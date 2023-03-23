@@ -1,7 +1,11 @@
+import sys
+sys.path.append('/home/zinan/PycharmProjects/yolov3_from_scratch')
+
 import torch
 import torchvision
 from torch import Tensor
 from torch.utils import data
+from torch.utils.data import DataLoader
 
 import os
 from PIL import Image
@@ -9,11 +13,20 @@ from typing import List, Dict, Tuple, Any, Union, Optional
 import xml.etree.ElementTree as ET
 import collections
 import numpy as np
+from visdom import Visdom
 
 from yacs.config import CfgNode
 from torchvision import transforms as T
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
+
+from utils.utils import visualize_data_with_bbox, collate_fn
+
+VOC_CLASSES = ['aeroplane', 'bicycle', 'bird', 'boat',
+        'bottle', 'bus', 'car', 'cat', 'chair',
+        'cow', 'diningtable', 'dog', 'horse',
+        'motorbike', 'person', 'pottedplant',
+        'sheep', 'sofa', 'train', 'tvmonitor']
 
 
 def build_vocdetection_dataset_v2(dataset_cfg: CfgNode):
@@ -39,6 +52,24 @@ def build_vocdetection_dataset_v2(dataset_cfg: CfgNode):
     return train_dataset, val_dataset
 
 
+data_transforms = {
+        'train': A.Compose([
+            A.Resize(416, 416),
+            A.HorizontalFlip(),
+            A.VerticalFlip(),
+            A.RandomRotate90(),
+            A.RandomBrightnessContrast(),
+            A.Normalize(),
+            ToTensorV2(),
+        ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels'])),
+        'test': A.Compose([
+            A.Resize(416, 416),
+            A.Normalize(),
+            ToTensorV2(),
+        ]),
+    }
+
+
 class VOCDetectionV2(data.Dataset):
     def __init__(self, root, image_set, use_difficult=False, transforms=None):
         super(VOCDetectionV2, self).__init__()
@@ -46,11 +77,6 @@ class VOCDetectionV2(data.Dataset):
         self.image_set = image_set
         self.use_difficult = use_difficult
         self.transforms = transforms
-        self.classes = ['aeroplane', 'bicycle', 'bird', 'boat',
-        'bottle', 'bus', 'car', 'cat', 'chair',
-        'cow', 'diningtable', 'dog', 'horse',
-        'motorbike', 'person', 'pottedplant',
-        'sheep', 'sofa', 'train', 'tvmonitor']
 
         valid_sets = ['train', 'trainval', 'val']
         if self.image_set not in valid_sets:
@@ -99,6 +125,8 @@ class VOCDetectionV2(data.Dataset):
         img = Image.open(self.images[index])
         img_width, img_height = img.size
         tree = ET.parse(self.annos[index])
+        file_name = tree.find('filename').text
+        file_full_path = os.path.join(self.root, 'JPEGImages', file_name)
         objs = tree.findall('object')
         if not self.use_difficult:
             non_difficult_objs = [obj for obj in objs if int(obj.find('difficult').text) == 0]
@@ -112,12 +140,13 @@ class VOCDetectionV2(data.Dataset):
         difficult = [int(obj.find('difficult').text) for obj in non_difficult_objs]
 
         for idx, obj in enumerate(non_difficult_objs):
+            # TODO: may need to clip the value and make sure it is larger than 0.
             bbox = obj.find('bndbox')
             x0 = float(bbox.find('xmin').text) - 1
             x1 = float(bbox.find('xmax').text) - 1
             y0 = float(bbox.find('ymin').text) - 1
             y1 = float(bbox.find('ymax').text) - 1
-            cls = int(self.classes.index(obj.find('name').text.lower().strip()))
+            cls = int(VOC_CLASSES.index(obj.find('name').text.lower().strip()))
 
             w_image_ratio = (x1 - x0) / img_width
             h_image_ratio = (y1 - y0) / img_height
@@ -146,15 +175,29 @@ class VOCDetectionV2(data.Dataset):
         # bboxes_in_ratio[:, 0:2] = (bboxes[:, 2:] + bboxes[:, 0:2]) / 2 / 448
         # bboxes_in_ratio[:, 2:4] = (bboxes[:, 2:] - bboxes[:, 0:2]) / 448
         bboxes_in_ratio = torch.as_tensor(bboxes_in_ratio)  # [x1, y1, x2, y2], not normalized.
-        gt_classes = torch.from_numpy(gt_classes)
+        # gt_classes = torch.from_numpy(gt_classes)
         # print(gt_classes)
 
-        return img, bboxes_in_ratio, gt_classes, difficult
+        return img, bboxes_in_ratio, gt_classes, difficult, file_full_path
 
     def __len__(self) -> int:
         return len(self.images)
 
 
 if __name__ == '__main__':
-    dataset = VOCDetectionV2(root='/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit', image_set='train')
+    dataset = VOCDetectionV2(root='/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit/VOC2012', image_set='train', transforms=data_transforms['train'])
+    loader = DataLoader(
+        dataset,
+        batch_size=4,
+        shuffle=True,
+        num_workers=4,
+        collate_fn=collate_fn,
+        drop_last=True
+        )
     
+    # for i in next(iter(loader)):
+    #     print(i)
+    
+    viz = Visdom()
+    out = visualize_data_with_bbox(loader, VOC_CLASSES)
+    viz.images(out, win='data_viewer', opts={'title': 'data viewer'})
