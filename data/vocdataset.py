@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/zinan/PycharmProjects/yolov3_from_scratch')
+sys.path.append('/home/zinan/PyCharmProjects/yolov3_from_scratch')
 
 import torch
 import torchvision
@@ -54,15 +54,17 @@ def build_vocdetection_dataset_v2(dataset_cfg: CfgNode):
 
 data_transforms = {
         'train': A.Compose([
+            A.LongestMaxSize(max_size=512, interpolation=1),
+            A.PadIfNeeded(min_height=512, min_width=512, border_mode=0, value=(0,0,0)),
             A.Resize(416, 416),
             A.HorizontalFlip(),
-            A.VerticalFlip(),
-            A.RandomRotate90(),
             A.RandomBrightnessContrast(),
             A.Normalize(),
             ToTensorV2(),
         ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['class_labels'])),
         'test': A.Compose([
+            A.LongestMaxSize(max_size=512, interpolation=1),
+            A.PadIfNeeded(min_height=512, min_width=512, border_mode=0, value=(0,0,0)),
             A.Resize(416, 416),
             A.Normalize(),
             ToTensorV2(),
@@ -156,36 +158,32 @@ class VOCDetectionV2(data.Dataset):
             bboxes[idx, :] = [x0, y0, x1, y1]
             gt_classes[idx] = cls
 
-        # img = self.transforms(img)
-        # # transformed = self.transforms(image=img, bboxes=bboxes, class_labels=gt_classes)
-        # # img = transformed['image']
-        # bboxes = torch.as_tensor(bboxes)  # [x1, y1, x2, y2], not normalized.
-        # gt_classes = torch.from_numpy(gt_classes)
         img = np.asarray(img)
         transformed = self.transforms(image=img, bboxes=bboxes, class_labels=gt_classes)
         img = transformed['image']
 
         bboxes = transformed['bboxes']
+        transformed_bboxes_original = []
         bboxes_in_ratio = []
         for bbox in bboxes:
+            transformed_bboxes_original.append([b for b in bbox])
             box = [(bbox[0] + bbox[2]) / 2 / 448, (bbox[1] + bbox[3]) / 2 / 448,
                    (bbox[2] - bbox[0]) / 448, (bbox[3] - bbox[1]) / 448]
             bboxes_in_ratio.append(box)
-        # bboxes_in_ratio = torch.zeros_like(bboxes)
-        # bboxes_in_ratio[:, 0:2] = (bboxes[:, 2:] + bboxes[:, 0:2]) / 2 / 448
-        # bboxes_in_ratio[:, 2:4] = (bboxes[:, 2:] - bboxes[:, 0:2]) / 448
-        bboxes_in_ratio = torch.as_tensor(bboxes_in_ratio)  # [x1, y1, x2, y2], not normalized.
-        # gt_classes = torch.from_numpy(gt_classes)
-        # print(gt_classes)
 
-        return img, bboxes_in_ratio, gt_classes, difficult, file_full_path
+        bboxes_in_ratio = torch.as_tensor(bboxes_in_ratio)  # [x1, y1, x2, y2], not normalized.
+        transformed_bboxes_original = torch.as_tensor(transformed_bboxes_original)
+
+        return img, bboxes_in_ratio, gt_classes, difficult, file_full_path, transformed_bboxes_original
 
     def __len__(self) -> int:
         return len(self.images)
 
 
 if __name__ == '__main__':
-    dataset = VOCDetectionV2(root='/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit/VOC2012', image_set='train', transforms=data_transforms['train'])
+    root = '/home/zinan/dataset/VOC2012/VOC2012_train_val/VOC2012_train_val/'
+    image_set = 'train'
+    dataset = VOCDetectionV2(root=root, image_set=image_set, transforms=data_transforms[image_set])
     loader = DataLoader(
         dataset,
         batch_size=4,
@@ -194,9 +192,6 @@ if __name__ == '__main__':
         collate_fn=collate_fn,
         drop_last=True
         )
-    
-    # for i in next(iter(loader)):
-    #     print(i)
     
     viz = Visdom()
     out = visualize_data_with_bbox(loader, VOC_CLASSES)

@@ -16,16 +16,18 @@ def collate_fn(batch):
     bboxes = list()
     labels = list()
     full_path = list()
+    original_bboxes = list()
 
     for b in batch:
         images.append(b[0])
         bboxes.append(b[1])
         labels.append(b[2])
-        full_path.append(b[-1])
+        full_path.append(b[-2])
+        original_bboxes.append(b[-1])
 
     images = torch.stack(images, dim=0)
 
-    return images, bboxes, labels, full_path
+    return images, bboxes, labels, full_path, original_bboxes
 
 
 def visualize_data_with_bbox(data_loader, classes):
@@ -42,7 +44,7 @@ def visualize_data_with_bbox(data_loader, classes):
         inp = torch.transpose(inp, 0, 2)
         
         # TODO: Boxes need to be in (xmin, ymin, xmax, ymax) format. Use torchvision.ops.box_convert to convert them
-        inp = draw_bounding_boxes(inp.byte(), inputs[1][i], labels, width=2, font_size=80)
+        inp = draw_bounding_boxes(inp.byte(), inputs[-1][i], labels, width=2, font_size=80)
         inputs[0][i] = inp
     out = torchvision.utils.make_grid(inputs[0], nrow=5)
     
