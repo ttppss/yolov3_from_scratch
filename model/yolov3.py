@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torch.nn import functional
 
 
 class ConvBatchnormRelu(nn.Module):
@@ -25,7 +26,47 @@ class ConvResidualBlock(nn.Module):
         out = self.conv1(x)
         out = self.conv2(out)
         return out + x
+    
 
+class ConvSet(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super(ConvSet, self).__init__()
+        self.layer = nn.Sequential(
+            ConvBatchnormRelu(in_channel, out_channel, kernel_size=1, stride=1, padding=0),
+            ConvBatchnormRelu(out_channel, in_channel, kernel_size=3, stride=1, padding=1),
+            ConvBatchnormRelu(in_channel, out_channel, kernel_size=1, stride=1, padding=0),
+            ConvBatchnormRelu(out_channel, in_channel, kernel_size=3, stride=1, padding=1),
+            ConvBatchnormRelu(in_channel, out_channel, kernel_size=1, stride=1, padding=0),
+        )
+    
+    def forward(self, x):
+        return self.layer(x)
+    
+
+class DownSampling(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super(DownSampling, self).__init__()
+        self.layer = nn.Sequential(
+            ConvBatchnormRelu(in_channel, out_channel, kernel_size=3, stride=2, padding=1)
+        )
+
+    def forward(self, x):
+        return self.layer(x)
+    
+
+
+class UpSampling(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super(UpSampling, self).__init__()
+        
+    def forward(self, x):
+        return functional.interpolate(x, scale_factor=2, mode='nearest')
+
+
+class ConvSet(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super(ConvSet).__init__()
+        self.
 
 
 if __name__ == '__main__':

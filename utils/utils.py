@@ -32,7 +32,6 @@ def collate_fn(batch):
 
 def visualize_data_with_bbox(data_loader, classes):
     inputs = next(iter(data_loader))
-    print(inputs)
     for i in range(inputs[0].shape[0]):
         labels_num = inputs[2][i]
         # draw_bounding_boxes only accepts string, so convert it from int to class name.
@@ -44,7 +43,7 @@ def visualize_data_with_bbox(data_loader, classes):
         inp = torch.transpose(inp, 0, 2)
         
         # TODO: Boxes need to be in (xmin, ymin, xmax, ymax) format. Use torchvision.ops.box_convert to convert them
-        inp = draw_bounding_boxes(inp.byte(), inputs[-1][i], labels, width=2, font_size=80)
+        inp = draw_bounding_boxes(inp.byte(), inputs[-1][i], labels, width=3)
         inputs[0][i] = inp
     out = torchvision.utils.make_grid(inputs[0], nrow=5)
     

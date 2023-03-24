@@ -1,5 +1,6 @@
 import sys
-sys.path.append('/home/zinan/PyCharmProjects/yolov3_from_scratch')
+# sys.path.append('/home/zinan/PyCharmProjects/yolov3_from_scratch')
+sys.path.append('/home/zinan/pycharmproject/yolov3_from_scratch')
 
 import torch
 import torchvision
@@ -47,8 +48,8 @@ def build_vocdetection_dataset_v2(dataset_cfg: CfgNode):
         ]),
     }
 
-    train_dataset = VOCDetectionV2(dataset_cfg.DATA_ROOT, 'train', transforms=data_transforms['train'])
-    val_dataset = VOCDetectionV2(dataset_cfg.DATA_ROOT, 'val', transforms=data_transforms['test'])
+    train_dataset = VOCDetection(dataset_cfg.DATA_ROOT, 'train', transforms=data_transforms['train'])
+    val_dataset = VOCDetection(dataset_cfg.DATA_ROOT, 'val', transforms=data_transforms['test'])
     return train_dataset, val_dataset
 
 
@@ -72,9 +73,9 @@ data_transforms = {
     }
 
 
-class VOCDetectionV2(data.Dataset):
+class VOCDetection(data.Dataset):
     def __init__(self, root, image_set, use_difficult=False, transforms=None):
-        super(VOCDetectionV2, self).__init__()
+        super(VOCDetection, self).__init__()
         self.root = root
         self.image_set = image_set
         self.use_difficult = use_difficult
@@ -181,9 +182,11 @@ class VOCDetectionV2(data.Dataset):
 
 
 if __name__ == '__main__':
-    root = '/home/zinan/dataset/VOC2012/VOC2012_train_val/VOC2012_train_val/'
+    # root = '/home/zinan/dataset/VOC2012/VOC2012_train_val/VOC2012_train_val/'
+    # alienware-home
+    root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
     image_set = 'train'
-    dataset = VOCDetectionV2(root=root, image_set=image_set, transforms=data_transforms[image_set])
+    dataset = VOCDetection(root=root, image_set=image_set, transforms=data_transforms[image_set])
     loader = DataLoader(
         dataset,
         batch_size=4,
