@@ -1,6 +1,6 @@
 import sys
-# sys.path.append('/home/zinan/PyCharmProjects/yolov3_from_scratch')
-sys.path.append('/home/zinan/pycharmproject/yolov3_from_scratch')
+sys.path.append('/home/zinan/PycharmProjects/yolov3_from_scratch')
+# sys.path.append('/home/zinan/pycharmproject/yolov3_from_scratch')
 
 import torch
 import torchvision
@@ -182,9 +182,10 @@ class VOCDetection(data.Dataset):
 
 
 if __name__ == '__main__':
-    # root = '/home/zinan/dataset/VOC2012/VOC2012_train_val/VOC2012_train_val/'
+    # alienware-desktop
+    root = '/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/'
     # alienware-home
-    root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
+    # root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
     image_set = 'train'
     dataset = VOCDetection(root=root, image_set=image_set, transforms=data_transforms[image_set])
     loader = DataLoader(
