@@ -108,14 +108,14 @@ class VOCDetection(data.Dataset):
             if self.image_set != 'train':
                 self.transforms = T.Compose([
                     # note: modified the resolution here for SSD300
-                    T.Resize((448, 448)),
+                    T.Resize((416, 416)),
                     T.ToTensor(),
                     T.Normalize(mean = [0.485, 0.456, 0.406],
                                      std = [0.229, 0.224, 0.225])
                 ])
             else:
                 self.transforms = T.Compose([
-                    T.Resize((448, 448)),
+                    T.Resize((416, 416)),
                     T.ToTensor(),
                     T.Normalize(mean = [0.485, 0.456, 0.406],
                                      std = [0.229, 0.224, 0.225])
@@ -145,16 +145,16 @@ class VOCDetection(data.Dataset):
         for idx, obj in enumerate(non_difficult_objs):
             # TODO: may need to clip the value and make sure it is larger than 0.
             bbox = obj.find('bndbox')
-            x0 = float(bbox.find('xmin').text) - 1
-            x1 = float(bbox.find('xmax').text) - 1
-            y0 = float(bbox.find('ymin').text) - 1
-            y1 = float(bbox.find('ymax').text) - 1
+            x0 = float(bbox.find('xmin').text)
+            x1 = float(bbox.find('xmax').text)
+            y0 = float(bbox.find('ymin').text)
+            y1 = float(bbox.find('ymax').text)
             cls = int(VOC_CLASSES.index(obj.find('name').text.lower().strip()))
 
-            w_image_ratio = (x1 - x0) / img_width
-            h_image_ratio = (y1 - y0) / img_height
-            x_image_ratio = x0 / img_width + w_image_ratio / 2
-            y_image_ratio = y0 / img_height + h_image_ratio / 2
+            # w_image_ratio = (x1 - x0) / img_width
+            # h_image_ratio = (y1 - y0) / img_height
+            # x_image_ratio = x0 / img_width + w_image_ratio / 2
+            # y_image_ratio = y0 / img_height + h_image_ratio / 2
 
             bboxes[idx, :] = [x0, y0, x1, y1]
             gt_classes[idx] = cls
@@ -168,12 +168,12 @@ class VOCDetection(data.Dataset):
         bboxes_in_ratio = []
         for bbox in bboxes:
             transformed_bboxes_original.append([b for b in bbox])
-            box = [(bbox[0] + bbox[2]) / 2 / 448, (bbox[1] + bbox[3]) / 2 / 448,
-                   (bbox[2] - bbox[0]) / 448, (bbox[3] - bbox[1]) / 448]
+            box = [(bbox[0] + bbox[2]) / 2 / 416, (bbox[1] + bbox[3]) / 2 / 416,
+                   (bbox[2] - bbox[0]) / 416, (bbox[3] - bbox[1]) / 416]
             bboxes_in_ratio.append(box)
 
         bboxes_in_ratio = torch.as_tensor(bboxes_in_ratio)  # [x1, y1, x2, y2], not normalized.
-        transformed_bboxes_original = torch.as_tensor(transformed_bboxes_original)
+        transformed_bboxes_original = torch.as_tensor(transformed_bboxes_original)  # [cx, cy, w, h], normalized
 
         return img, bboxes_in_ratio, gt_classes, difficult, file_full_path, transformed_bboxes_original
 
@@ -188,14 +188,7 @@ if __name__ == '__main__':
     # root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
     image_set = 'train'
     dataset = VOCDetection(root=root, image_set=image_set, transforms=data_transforms[image_set])
-    loader = DataLoader(
-        dataset,
-        batch_size=4,
-        shuffle=True,
-        num_workers=4,
-        collate_fn=collate_fn,
-        drop_last=True
-        )
+    dataset[0]
     
     viz = Visdom()
     out = visualize_data_with_bbox(loader, VOC_CLASSES)
