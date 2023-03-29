@@ -1,6 +1,6 @@
 import sys
-sys.path.append('/home/zinan/PycharmProjects/yolov3_from_scratch')
-# sys.path.append('/home/zinan/pycharmproject/yolov3_from_scratch')
+# sys.path.append('/home/zinan/PycharmProjects/yolov3_from_scratch')
+sys.path.append('/home/zinan/pycharmproject/yolov3_from_scratch')
 
 import torch
 import torchvision
@@ -22,6 +22,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 
 from utils.utils import visualize_data_with_bbox, collate_fn
+from config import config as cfg
 
 VOC_CLASSES = ['aeroplane', 'bicycle', 'bird', 'boat',
         'bottle', 'bus', 'car', 'cat', 'chair',
@@ -175,6 +176,33 @@ class VOCDetection(data.Dataset):
         bboxes_in_ratio = torch.as_tensor(bboxes_in_ratio)  # [x1, y1, x2, y2], not normalized.
         transformed_bboxes_original = torch.as_tensor(transformed_bboxes_original)  # [cx, cy, w, h], normalized
 
+        # get the ground truth tensor for each feature size.
+        labels = {}
+        for feature_size, anchors in cfg.ANCHORS_GROUP.items():
+            labels[feature_size] = torch.zeros((feature_size, feature_size, 3, cfg.CLASS_NUM + 5))
+
+            for bbox, cls in zip(bboxes_in_ratio, gt_classes):
+                # get the iou between the bbox and all the anchors.
+                ious = []
+                for anchor in anchors:
+                    iou = bbox_iou(bbox, anchor)
+                    ious.append(iou)
+                ious = torch.as_tensor(ious)
+
+                # get the anchor index with the max iou.
+                max_iou, max_iou_index = ious.max(0)
+
+                # get the feature map index for the bbox.
+                feature_map_index_x = int(bbox[0] * feature_size)
+                feature_map_index_y = int(bbox[1] * feature_size)
+
+                # get the label for the feature map.
+                label = labels[feature_size][feature_map_index_y, feature_map_index_x, max_iou_index, :]
+                label[0:4] = bbox
+                label[4] = 1
+                label[5 + int(cls)] = 1
+
+
         return img, bboxes_in_ratio, gt_classes, difficult, file_full_path, transformed_bboxes_original
 
     def __len__(self) -> int:
@@ -183,13 +211,14 @@ class VOCDetection(data.Dataset):
 
 if __name__ == '__main__':
     # alienware-desktop
-    root = '/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/'
+    # root = '/home/zinan/dataset/demo/VOCtrainval_11-May-2012/VOCdevkit/VOC2012/'
     # alienware-home
-    # root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
+    root = '/home/zinan/dataset/voc/VOCtrainval_11-May-2012/VOCdevkit/VOC2012'
     image_set = 'train'
     dataset = VOCDetection(root=root, image_set=image_set, transforms=data_transforms[image_set])
-    dataset[0]
+    print(dataset[0])
+    print(cfg.ANCHORS_GROUP)
     
-    viz = Visdom()
-    out = visualize_data_with_bbox(loader, VOC_CLASSES)
-    viz.images(out, win='data_viewer', opts={'title': 'data viewer'})
+    # viz = Visdom()
+    # out = visualize_data_with_bbox(loader, VOC_CLASSES)
+    # viz.images(out, win='data_viewer', opts={'title': 'data viewer'})

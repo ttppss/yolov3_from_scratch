@@ -48,3 +48,20 @@ def visualize_data_with_bbox(data_loader, classes):
     out = torchvision.utils.make_grid(inputs[0], nrow=5)
     
     return out
+
+
+def iou(bbox1, bbox2):
+    """ get the IOU between two boxes"""
+    # bbox1 and bbox2 are in the format of [x1, y1, x2, y2]
+    x1 = max(bbox1[0], bbox2[0])
+    y1 = max(bbox1[1], bbox2[1])
+    x2 = min(bbox1[2], bbox2[2])
+    y2 = min(bbox1[3], bbox2[3])
+    if x2 > x1 and y2 > y1:
+        inter_area = (x2 - x1) * (y2 - y1)
+        bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
+        bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
+        iou = inter_area / (bbox1_area + bbox2_area - inter_area)
+    else:
+        iou = 0
+    return iou
